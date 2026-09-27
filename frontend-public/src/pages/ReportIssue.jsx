@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLang } from '../i18n';
 import { api } from '../lib/api';
 
-const CATEGORIES = ['Recruitment','Transfers','Salary/payment','Infrastructure','Workload','Administrative procedures','Other'];
-
 export default function ReportIssue() {
   const { t } = useLang();
+  const [categories, setCategories] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [taluks, setTaluks] = useState([]);
+
+  useEffect(() => {
+    api.getIssueCategories().then(d => setCategories(d.categories || [])).catch(() => {});
+    api.getDistricts().then(d => setDistricts(d.districts || [])).catch(() => {});
+  }, []);
+
   const [form, setForm] = useState({
-    category: '', district: '', taluk: '', institutionType: '', description: '',
+    categoryId: '', districtId: '', talukId: '', description: '',
     seriousness: '', wantsFollowup: false, name: '', phone: '', email: '',
   });
   const [reference, setReference] = useState(null);
@@ -16,11 +23,21 @@ export default function ReportIssue() {
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const onDistrictChange = (districtId) => {
+    update('districtId', districtId);
+    update('talukId', '');
+    if (districtId) api.getTaluks(districtId).then(d => setTaluks(d.taluks || [])).catch(() => setTaluks([]));
+    else setTaluks([]);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setSubmitting(true); setError('');
     try {
       const res = await api.submitIssue({
+        category_id: form.categoryId || undefined,
+        district_id: form.districtId || undefined,
+        taluk_id: form.talukId || undefined,
         description: form.description,
         seriousness: form.seriousness || undefined,
         wants_followup: form.wantsFollowup,
@@ -56,14 +73,24 @@ export default function ReportIssue() {
       <h1 className="text-2xl font-bold text-kelu-ink mb-6">{t('issue.title')}</h1>
       <form onSubmit={submit} className="space-y-4">
         <Field label={t('issue.category')}>
-          <select required className="input" value={form.category} onChange={e => update('category', e.target.value)}>
+          <select required className="input" value={form.categoryId} onChange={e => update('categoryId', e.target.value)}>
             <option value="">—</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </Field>
         <div className="grid grid-cols-2 gap-4">
-          <Field label={t('survey.district')}><input className="input" value={form.district} onChange={e => update('district', e.target.value)} /></Field>
-          <Field label={t('survey.taluk')}><input className="input" value={form.taluk} onChange={e => update('taluk', e.target.value)} /></Field>
+          <Field label={t('survey.district')}>
+            <select className="input" value={form.districtId} onChange={e => onDistrictChange(e.target.value)}>
+              <option value="">—</option>
+              {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </Field>
+          <Field label={t('survey.taluk')}>
+            <select className="input" value={form.talukId} disabled={!form.districtId} onChange={e => update('talukId', e.target.value)}>
+              <option value="">—</option>
+              {taluks.map(t2 => <option key={t2.id} value={t2.id}>{t2.name}</option>)}
+            </select>
+          </Field>
         </div>
         <Field label={t('issue.description')}>
           <textarea required minLength={10} className="input h-32" value={form.description} onChange={e => update('description', e.target.value)} />

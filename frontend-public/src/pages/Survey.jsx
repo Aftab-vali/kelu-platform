@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLang } from '../i18n';
 import { api } from '../lib/api';
 import ProgressSteps from '../components/ProgressSteps';
@@ -20,8 +20,17 @@ export default function Survey() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const [districts, setDistricts] = useState([]);
+  const [taluks, setTaluks] = useState([]);
+  const [institutions, setInstitutions] = useState([]);
+
+  useEffect(() => {
+    api.getDistricts().then(d => setDistricts(d.districts || [])).catch(() => {});
+    api.getInstitutions().then(d => setInstitutions(d.institutions || [])).catch(() => {});
+  }, []);
+
   const [form, setForm] = useState({
-    district: '', taluk: '', institutionCategory: '', institutionLevel: '',
+    districtId: '', talukId: '', institutionId: '',
     experience: '', subject: '',
     challenges: [], challengesMore: '',
     priorities: [], urgent: '',
@@ -31,6 +40,16 @@ export default function Survey() {
   });
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const onDistrictChange = (districtId) => {
+    update('districtId', districtId);
+    update('talukId', '');
+    if (districtId) {
+      api.getTaluks(districtId).then(d => setTaluks(d.taluks || [])).catch(() => setTaluks([]));
+    } else {
+      setTaluks([]);
+    }
+  };
 
   const toggleChallenge = (c) => {
     setForm(f => {
@@ -59,13 +78,13 @@ export default function Survey() {
     setError('');
     try {
       await api.submitSurvey({
+        district_id: form.districtId || undefined,
+        taluk_id: form.talukId || undefined,
+        institution_id: form.institutionId || undefined,
         teaching_experience_years: form.experience ? parseInt(form.experience, 10) : undefined,
         subject_area: form.subject || undefined,
         language: 'en',
         answers: [
-          { question_key: 'district_taluk_institution', answer_json: {
-              district: form.district, taluk: form.taluk,
-              institutionCategory: form.institutionCategory, institutionLevel: form.institutionLevel } },
           { question_key: 'challenges_selected', answer_json: form.challenges },
           { question_key: 'challenges_more', answer_text: form.challengesMore },
           { question_key: 'priority_top3', answer_json: form.priorities },
@@ -102,23 +121,22 @@ export default function Survey() {
       {step === 1 && (
         <div className="space-y-4">
           <h2 className="font-semibold text-lg">{t('survey.s1title')}</h2>
-          <Field label={t('survey.district')}><input className="input" value={form.district} onChange={e => update('district', e.target.value)} /></Field>
-          <Field label={t('survey.taluk')}><input className="input" value={form.taluk} onChange={e => update('taluk', e.target.value)} /></Field>
-          <Field label={t('survey.institutionCategory')}>
-            <select className="input" value={form.institutionCategory} onChange={e => update('institutionCategory', e.target.value)}>
+          <Field label={t('survey.district')}>
+            <select className="input" value={form.districtId} onChange={e => onDistrictChange(e.target.value)}>
               <option value="">—</option>
-              <option value="government">Government</option>
-              <option value="aided">Aided</option>
-              <option value="private">Private</option>
-              <option value="other">Other</option>
+              {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </Field>
-          <Field label={t('survey.institutionLevel')}>
-            <select className="input" value={form.institutionLevel} onChange={e => update('institutionLevel', e.target.value)}>
+          <Field label={t('survey.taluk')}>
+            <select className="input" value={form.talukId} disabled={!form.districtId} onChange={e => update('talukId', e.target.value)}>
               <option value="">—</option>
-              <option value="primary">Primary</option>
-              <option value="secondary">Secondary</option>
-              <option value="higher_education">Higher Education</option>
+              {taluks.map(t2 => <option key={t2.id} value={t2.id}>{t2.name}</option>)}
+            </select>
+          </Field>
+          <Field label={t('survey.institutionCategory')}>
+            <select className="input" value={form.institutionId} onChange={e => update('institutionId', e.target.value)}>
+              <option value="">—</option>
+              {institutions.map(i => <option key={i.id} value={i.id}>{i.category} — {i.level.replace('_', ' ')}</option>)}
             </select>
           </Field>
           <Field label={t('survey.experience')}><input type="number" min="0" max="60" className="input" value={form.experience} onChange={e => update('experience', e.target.value)} /></Field>

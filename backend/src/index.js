@@ -10,6 +10,7 @@ const suggestionsRoutes = require('./routes/suggestions');
 const candidateRoutes = require('./routes/candidate');
 const updatesRoutes = require('./routes/updates');
 const adminRoutes = require('./routes/admin');
+const referenceRoutes = require('./routes/reference');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/candidate', candidateRoutes);
 app.use('/api/updates', updatesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reference', referenceRoutes);
 
 // Never leak stack traces / internals to the client.
 app.use((err, req, res, next) => {

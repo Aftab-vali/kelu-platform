@@ -24,4 +24,8 @@ export const api = {
   submitSuggestion: (payload) => post('/suggestions', payload),
   getCandidate: () => get('/candidate'),
   getUpdates: () => get('/updates'),
+  getDistricts: () => get('/reference/districts'),
+  getTaluks: (districtId) => get(`/reference/taluks${districtId ? `?district_id=${districtId}` : ''}`),
+  getInstitutions: () => get('/reference/institutions'),
+  getIssueCategories: () => get('/reference/issue-categories'),
 };
